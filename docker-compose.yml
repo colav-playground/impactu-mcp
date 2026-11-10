@@ -1,0 +1,16 @@
+services:
+  impactu-mcp:
+    build: .
+    image: impactu-mcp:latest
+    container_name: impactu-mcp
+    restart: unless-stopped
+    env_file: .env
+    # only nginx on the same machine talks to the container
+    ports:
+      - "127.0.0.1:8000:8000"
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }

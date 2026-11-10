@@ -1,0 +1,24 @@
+# Alternative to Docker: /etc/systemd/system/impactu-mcp.service
+# Install first:  sudo useradd --system --home /opt/impactu-mcp --shell /usr/sbin/nologin impactu-mcp
+#                 sudo -u impactu-mcp python3 -m venv /opt/impactu-mcp/venv
+#                 sudo -u impactu-mcp /opt/impactu-mcp/venv/bin/pip install /opt/impactu-mcp/src
+[Unit]
+Description=ImpactU MCP server (Claude connector)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=impactu-mcp
+Group=impactu-mcp
+EnvironmentFile=/opt/impactu-mcp/.env
+Environment=HOST=127.0.0.1
+ExecStart=/opt/impactu-mcp/venv/bin/impactu-mcp
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
