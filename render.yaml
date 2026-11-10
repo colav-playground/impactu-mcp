@@ -1,0 +1,19 @@
+# Render Blueprint: free web service built from the Dockerfile.
+# Deploy: https://render.com/deploy?repo=https://github.com/colav-playground/impactu-mcp
+# Connector URL: https://<service name>.onrender.com/mcp (Render sets RENDER_EXTERNAL_HOSTNAME, which the server trusts).
+services:
+  - type: web
+    name: impactu-mcp
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: IMPACTU_API_BASE
+        value: https://api.dev.impactu.colav.co
+      # the free instance has 512 MB of memory: one worker
+      - key: WORKERS
+        value: "1"
+      - key: LOG_LEVEL
+        value: info

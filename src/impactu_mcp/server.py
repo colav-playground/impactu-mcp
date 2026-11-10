@@ -414,6 +414,8 @@ async def home(request: Request) -> JSONResponse:
 
 def build_app():
     hosts = [h.strip() for h in os.environ.get("MCP_PUBLIC_HOSTS", "").split(",") if h.strip()]
+    # hosting platforms that announce the public host name themselves (Render, Hugging Face Spaces)
+    hosts += [os.environ[v] for v in ("RENDER_EXTERNAL_HOSTNAME", "SPACE_HOST") if os.environ.get(v)]
     security = TransportSecuritySettings(
         enable_dns_rebinding_protection=True,
         allowed_hosts=["127.0.0.1:*", "localhost:*", "[::1]:*", *hosts, *[f"{h}:*" for h in hosts]],

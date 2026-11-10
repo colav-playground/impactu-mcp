@@ -73,3 +73,7 @@ without sticky sessions.
 ## Deploying
 
 See [DEPLOY.md](DEPLOY.md) for step-by-step instructions to publish it at `https://mcp.impactu.colav.co`.
+
+For a free test deployment without a server, use Render's free plan (the instance sleeps when idle):
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/colav-playground/impactu-mcp)

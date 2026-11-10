@@ -12,6 +12,14 @@ Claude connects **from Anthropic's cloud**, not from the user's computer, so the
 public internet over HTTPS with a valid certificate. The server keeps no data and no secrets: it only calls the public
 ImpactU API.
 
+> **Free stopgap without a server: Render.** Open
+> <https://render.com/deploy?repo=https://github.com/colav-playground/impactu-mcp>, sign in (GitHub login works) and
+> click **Apply**: Render builds the `Dockerfile` with the settings in `render.yaml` on its free plan, and the connector
+> URL is `https://<service name>.onrender.com/mcp` (shown on the service page). No card is needed. The free instance
+> sleeps after 15 minutes without requests and takes up to a minute to wake, so the first Claude call after a pause can
+> fail; retrying works. Every push to `main` redeploys it. `deploy/huggingface/push.py` does the same for a Hugging Face
+> Docker Space, which needs a PRO account.
+
 ## 0. What you need
 
 - A Linux server with a public IP. The machine that serves the ImpactU API is a good choice: the MCP traffic ends there
