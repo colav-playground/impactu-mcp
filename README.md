@@ -7,6 +7,22 @@ de Antioquia: about 2.9 million research products, 1.5 million people, 55,000 in
 Once deployed at `https://mcp.impactu.colav.co/mcp`, anyone can add it to Claude as a **custom connector**, including
 users on the Free plan (which allows one custom connector). It needs no account or key: ImpactU's query API is public.
 
+## Use it
+
+- **Claude (web, desktop, mobile; any plan, Free included):** Settings → Connectors → Add custom connector, URL
+  `https://impactu-mcp.onrender.com/mcp` (temporary server; it must end in `/mcp`), no OAuth.
+- **Claude Code plugin** (the connector plus the `impactu-mcp-connector` skill to deploy, test and maintain it):
+
+  ```bash
+  claude plugin marketplace add colav-playground/impactu-mcp
+  claude plugin install impactu-mcp@colav
+  ```
+
+- **Skill only, in Claude (web/desktop):** download
+  [`dist/impactu-mcp-connector.zip`](https://github.com/colav-playground/impactu-mcp/raw/main/dist/impactu-mcp-connector.zip)
+  and upload it in Settings → Capabilities → Skills. Rebuild it after editing the skill:
+  `cd skills && zip -qr -X ../dist/impactu-mcp-connector.zip impactu-mcp-connector`.
+
 ## Tools
 
 All tools are read-only.

@@ -1,0 +1,16 @@
+{
+  "name": "colav",
+  "owner": {
+    "name": "Colav, Universidad de Antioquia"
+  },
+  "metadata": {
+    "description": "Colav's Claude Code plugins for ImpactU, Colombia's open research information system."
+  },
+  "plugins": [
+    {
+      "name": "impactu-mcp",
+      "source": "./",
+      "description": "ImpactU connector (remote MCP server, no sign-in) and the impactu-mcp-connector skill."
+    }
+  ]
+}

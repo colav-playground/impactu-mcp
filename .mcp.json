@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "impactu": {
+      "type": "http",
+      "url": "https://impactu-mcp.onrender.com/mcp"
+    }
+  }
+}
