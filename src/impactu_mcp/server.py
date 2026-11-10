@@ -422,8 +422,38 @@ def build_app():
         allowed_origins=["http://127.0.0.1:*", "http://localhost:*", "https://claude.ai", "https://claude.com",
                          *[f"https://{h}" for h in hosts]],
     )
-    return mcp.streamable_http_app(stateless_http=True, json_response=True, transport_security=security,
-                                   host=os.environ.get("HOST", "127.0.0.1"))
+    inner = mcp.streamable_http_app(stateless_http=True, json_response=True, transport_security=security,
+                                    host=os.environ.get("HOST", "127.0.0.1"))
+    return probe_friendly(inner)
+
+
+def probe_friendly(inner):
+    """Answer HEAD, OPTIONS and DELETE on /mcp with 200/204 instead of 405.
+
+    Claude's connector check (on Free accounts) probes the URL before connecting and reads a 405 as "this server
+    wants sign-in". The server is stateless, so there is no session for a DELETE to end.
+    """
+    allow = [(b"allow", b"GET, POST, DELETE, HEAD, OPTIONS")]
+
+    async def app(scope, receive, send):
+        if scope["type"] == "http" and scope["path"].rstrip("/") == "/mcp" and scope["method"] in ("HEAD", "OPTIONS", "DELETE"):
+            if scope["method"] == "HEAD":
+                status, headers = 200, [(b"content-type", b"application/json")]
+            elif scope["method"] == "DELETE":
+                status, headers = 204, []
+            else:
+                origin = dict(scope["headers"]).get(b"origin", b"*")
+                status, headers = 204, [(b"access-control-allow-origin", origin),
+                                        (b"access-control-allow-methods", b"GET, POST, DELETE, OPTIONS"),
+                                        (b"access-control-allow-headers", b"*"),
+                                        (b"access-control-expose-headers", b"mcp-session-id, mcp-protocol-version"),
+                                        (b"access-control-max-age", b"86400"), (b"vary", b"origin")]
+            await send({"type": "http.response.start", "status": status, "headers": allow + headers})
+            await send({"type": "http.response.body", "body": b""})
+            return
+        await inner(scope, receive, send)
+
+    return app
 
 
 app = build_app()
