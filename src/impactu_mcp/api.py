@@ -18,9 +18,9 @@ class ApiError(Exception):
     """An error to show to the model: a bad parameter, an unknown id, or the API being down."""
 
 
-def seg(value: str) -> str:
-    """Quote one path segment."""
-    return quote(str(value).strip(), safe="")
+def seg(value: str, keep_slash: bool = False) -> str:
+    """Quote one path segment; work ids are DOIs, which the API wants with their slashes as they are."""
+    return quote(str(value).strip(), safe="/" if keep_slash else "")
 
 
 class ImpactUClient:

@@ -170,12 +170,12 @@ async def list_products(
 
 @mcp.tool(annotations=READ_ONLY)
 async def get_product(
-    product_id: Annotated[str, Field(description="ImpactU product id (24 hex characters).")],
+    product_id: Annotated[str, Field(description="ImpactU product id, as returned by the search and list tools (usually the DOI, e.g. 10.1103/physrevd.103.095032).")],
     max_authors: Annotated[int, Field(ge=0, le=100, description="Authors to include, in byline order.")] = 20,
 ) -> dict:
     """Get one research product: title, year, type per source, journal and its Scimago quartile that year,
     citations, open access, abstract, external ids (DOI, OpenAlex, Scienti), groups and first authors."""
-    d = await call(f"/work/{seg(product_id)}", {"view": "full" if max_authors > 10 else "summary"})
+    d = await call(f"/work/{seg(product_id, keep_slash=True)}", {"view": "full" if max_authors > 10 else "summary"})
     return C.product_detail(d.get("data") or {}, max_authors=max_authors)
 
 
@@ -200,13 +200,13 @@ async def find_product_by_doi(
 
 @mcp.tool(annotations=READ_ONLY)
 async def get_product_authors(
-    product_id: Annotated[str, Field(description="ImpactU product id.")],
+    product_id: Annotated[str, Field(description="ImpactU product id, as returned by the search and list tools (usually the DOI).")],
     offset: Annotated[int, Field(ge=0, description="First author to return (0 = first in the byline).")] = 0,
     limit: Annotated[int, Field(ge=1, le=200, description="Number of authors to return.")] = 50,
     only_colombian: Annotated[bool, Field(description="Keep only authors with an affiliation in Colombia or a Scienti id.")] = False,
 ) -> dict:
     """Full author list of a product in byline order, with ids and affiliations (products in lists show only the first authors)."""
-    d = await call(f"/work/{seg(product_id)}/authors", {"view": "full"})
+    d = await call(f"/work/{seg(product_id, keep_slash=True)}/authors", {"view": "full"})
     authors = [a for a in d.get("data") or [] if isinstance(a, dict)]
     if only_colombian:
         def colombian(a):
@@ -315,7 +315,7 @@ async def search_sources(
 
 
 @mcp.tool(annotations=READ_ONLY)
-async def get_source(source_id: Annotated[str, Field(description="ImpactU source (journal) id, 24 hex characters.")]) -> dict:
+async def get_source(source_id: Annotated[str, Field(description="ImpactU source (journal) id, as returned by search_sources or autocomplete.")]) -> dict:
     """Profile of a journal or publication source."""
     d = await call(f"/source/{seg(source_id)}", {"view": "full"})
     return C.source(d.get("data") or {})
