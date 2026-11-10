@@ -431,11 +431,14 @@ def probe_friendly(inner):
     """Answer HEAD, OPTIONS and DELETE on /mcp with 200/204 instead of 405.
 
     Claude's connector check (on Free accounts) probes the URL before connecting and reads a 405 as "this server
-    wants sign-in". The server is stateless, so there is no session for a DELETE to end.
+    wants sign-in". The server is stateless, so there is no session for a DELETE to end. The bare host also works as
+    the endpoint (a connector URL entered without /mcp): everything but GET and HEAD on / goes to /mcp.
     """
     allow = [(b"allow", b"GET, POST, DELETE, HEAD, OPTIONS")]
 
     async def app(scope, receive, send):
+        if scope["type"] == "http" and scope["path"] == "/" and scope["method"] not in ("GET", "HEAD"):
+            scope = {**scope, "path": "/mcp", "raw_path": b"/mcp"}
         if scope["type"] == "http" and scope["path"].rstrip("/") == "/mcp" and scope["method"] in ("HEAD", "OPTIONS", "DELETE"):
             if scope["method"] == "HEAD":
                 status, headers = 200, [(b"content-type", b"application/json")]
