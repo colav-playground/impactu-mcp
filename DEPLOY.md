@@ -41,11 +41,11 @@ It must print the server's IP before you request the certificate in step 5.
 
 ## 2. Get the code onto the server
 
-Recommended: keep the code in a Colav repository (for example `github.com/colav/impactu-mcp`) and clone it:
+The code is in the public repository [colav-playground/impactu-mcp](https://github.com/colav-playground/impactu-mcp). Clone it:
 
 ```bash
 sudo mkdir -p /opt/impactu-mcp && sudo chown $USER /opt/impactu-mcp
-git clone https://github.com/colav/impactu-mcp.git /opt/impactu-mcp/src
+git clone https://github.com/colav-playground/impactu-mcp.git /opt/impactu-mcp/src
 cd /opt/impactu-mcp/src
 ```
 

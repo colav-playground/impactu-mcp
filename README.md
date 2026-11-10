@@ -34,6 +34,7 @@ numbers are dropped even if the API ever returns them.
 ## Run it locally
 
 ```bash
+git clone https://github.com/colav-playground/impactu-mcp.git && cd impactu-mcp
 python3 -m venv .venv && .venv/bin/pip install -e ".[test]"
 .venv/bin/impactu-mcp                     # http://127.0.0.1:8000/mcp
 ```
