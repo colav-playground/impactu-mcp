@@ -58,8 +58,11 @@ How to use these tools:
 - Resolve names to ids first with `autocomplete` (people, institutions, faculties, departments, groups,
   journals). Ids: person `0000177733` (Scienti/CvLAC code) or an OpenAlex author id; institution = ROR id
   (`03bp5hc83` is Universidad de Antioquia); faculty `03bp5hc83_20`; department `03bp5hc83_2_21620003_3154`;
-  group `COL0008423`; journal = 24-hex id; product = the id the search and list tools return (usually the DOI,
-  e.g. `10.1103/physrevd.103.095032`; pass it as is, with its slashes).
+  group `COL0008423`; journal = 24-hex id. A product's id is the first external id it has in this order: DOI
+  (`10.1103/physrevd.103.095032`), OpenAlex (`W...`), ScienTI (`0000177733-153`, COD_RH-COD_PROD), Minciencias,
+  DSpace handle (`10495/1234`), DSpace OAI, ISBN (books), Google Scholar, else the internal 24-hex id. Pass it as
+  the tools return it, slashes included. A few ids are shared by several products (one DOI by up to 147);
+  `find_product_by_doi` lists all products with a DOI.
 - For counts and distributions use `get_indicator` (computed by the API) or the `total` of a list with
   page_size=1, instead of paging through products.
 - Lists are paged (page_size up to 25). Products show the first authors only; use `get_product_authors`

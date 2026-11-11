@@ -1,10 +1,18 @@
 {
   "name": "impactu-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "ImpactU (Colombia's research information system) for Claude Code: the ImpactU connector (remote MCP server, no sign-in) and the impactu-mcp-connector skill to deploy, test and maintain it.",
-  "author": { "name": "Colav, Universidad de Antioquia" },
+  "author": {
+    "name": "Colav, Universidad de Antioquia"
+  },
   "homepage": "https://github.com/colav-playground/impactu-mcp",
   "repository": "https://github.com/colav-playground/impactu-mcp",
   "license": "MIT",
-  "keywords": ["impactu", "colav", "mcp", "scientometrics", "colombia"]
+  "keywords": [
+    "impactu",
+    "colav",
+    "mcp",
+    "scientometrics",
+    "colombia"
+  ]
 }

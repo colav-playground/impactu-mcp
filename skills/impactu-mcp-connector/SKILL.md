@@ -27,8 +27,13 @@ Docker ya exige cuenta PRO (respuesta 402).
 ## Estructura del repositorio
 
 - `src/impactu_mcp/api.py`: cliente HTTP con caché TTL, límite de concurrencia y `ApiError`. `seg(valor, keep_slash)`
-  arma segmentos de ruta: **los ids de productos son DOIs y `/work/{id}` necesita las barras sin codificar**
-  (`%2F` da 404).
+  arma segmentos de ruta: **`/work/{id}` necesita las barras del id sin codificar** (`%2F` da 404).
+- **Id de un producto:** el primer identificador externo que tenga, en este orden: DOI, OpenAlex, ScienTI
+  (`COD_RH-COD_PROD`), Minciencias, handle de DSpace (`uri`), DSpace OAI, ISBN (libros), Google Scholar y, si no hay
+  ninguno, el id interno de 24 hex (`mongodb_id`). Reparto en la versión de noviembre de 2026: ScienTI 41,6 %,
+  handle 24,7 %, DOI 22,5 %, OpenAlex 5,1 %, DSpace 4,0 %, interno 1,3 %, Minciencias 0,4 %, Scholar 0,3 %,
+  ISBN 0,05 %. Algunos ids se comparten (un DOI hasta por 147 productos, handles por 51.422 productos en total).
+  Las revistas siguen con ids de 24 hex.
 - `src/impactu_mcp/compact.py`: reduce los registros de ImpactU (que pueden pesar MB) a lo útil; elige valores por
   `source`, reconstruye abstracts, cuartil de la revista en el año de publicación, y **quita números de documento**
   (`PRIVATE_ID_SOURCES`).
@@ -91,7 +96,7 @@ organización. Una sesión ya abierta no ve conectores agregados después: abrir
 | --- | --- |
 | "…set up as not requiring sign-in, but the server asked for sign-in (status 405)" | La URL quedó sin `/mcp`. Desde `1d394e9` el servidor también responde en `/`, pero la URL correcta termina en `/mcp`. |
 | Falla la primera pregunta tras una pausa | Render gratis duerme a los 15 min; despierta en ~1 min. Volver a preguntar. |
-| `get_product` → "Not found" | Id con `/` codificado; usar `seg(id, keep_slash=True)`. |
+| `get_product` → "Not found" | Id con `/` codificado (DOI o handle); usar `seg(id, keep_slash=True)`. |
 | 421 Misdirected Request | El host no está en `MCP_PUBLIC_HOSTS` (o en las variables automáticas de la plataforma). |
 | 402 al crear un Space de Hugging Face | Docker Spaces requieren PRO. |
 
