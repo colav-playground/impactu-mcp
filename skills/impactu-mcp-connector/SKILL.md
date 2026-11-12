@@ -11,7 +11,7 @@ clave, así que sirve en cualquier plan, **incluido el gratis** (que permite un 
 
 | Qué | Dónde |
 | --- | --- |
-| Código (público) | <https://github.com/colav-playground/impactu-mcp>, copia local en `~/prog/claude/impactu-mcp` (venv en `.venv`) |
+| Código (público) | <https://github.com/colav-playground/impactu-mcp> (clonarlo y crear `.venv` como dice el README) |
 | Servidor provisional | <https://impactu-mcp.onrender.com/mcp> (Render, plan gratis, cuenta del usuario) |
 | Servidor definitivo (pendiente, lo hace Colav) | `https://mcp.impactu.colav.co/mcp`, pasos en `DEPLOY.md` del repositorio |
 | API que consulta | `https://api.dev.impactu.colav.co` (variable `IMPACTU_API_BASE`) |
@@ -57,12 +57,13 @@ bash scripts/check.sh https://impactu-mcp.onrender.com/mcp   # desde la carpeta 
 
 Revisa `/healthz`, que ningún método devuelva 405, que no haya metadatos OAuth (404 = sin inicio de sesión) y corre
 las 12 pruebas en vivo. La primera llamada puede tardar hasta un minuto si Render está dormido. Para probar el código
-local: `cd ~/prog/claude/impactu-mcp && .venv/bin/pytest -m live` (arranca su propio servidor). **Ojo:** si un servidor
+local: `.venv/bin/pytest -m live` desde la raíz del repositorio (arranca su propio servidor). **Ojo:** si un servidor
 viejo sigue escuchando en el puerto de prueba, las pruebas lo usan a él; revisa con `pgrep -af impactu-mcp`.
 
 ### Cambiar el código (herramienta nueva, cambio de la API)
 
-1. Editar `server.py` / `compact.py` siguiendo el estilo existente (anotaciones `READ_ONLY`, `Annotated[..., Field(description=...)]`,
+1. Editar `server.py` / `compact.py` siguiendo el estilo existente (`@tool("Título")`, que pone el título y la anotación de
+   solo lectura que exige el directorio de conectores, `Annotated[..., Field(description=...)]`,
    paginación de máximo 25, `trim()` para listas largas).
 2. `.venv/bin/pytest -m "not live"` y `.venv/bin/pytest -m live`.
 3. Commit con la atribución de la sesión y `git push origin main`.

@@ -169,6 +169,21 @@ sudo systemctl reload caddy
 
 Caddy has no built-in rate limit; add one at the firewall or a CDN if needed.
 
+## 5c. Or HTTPS with Apache (what Colav's servers run)
+
+`deploy/apache/mcp.impactu.colav.co.conf` has the commands in its header:
+
+```bash
+sudo cp /opt/impactu-mcp/src/deploy/apache/mcp.impactu.colav.co.conf /etc/apache2/sites-available/
+sudo a2enmod proxy proxy_http headers
+sudo a2ensite mcp.impactu.colav.co && sudo apache2ctl configtest && sudo systemctl reload apache2
+sudo certbot --apache -d mcp.impactu.colav.co
+```
+
+certbot copies the site to port 443 and redirects HTTP to HTTPS. `ProxyPreserveHost On` is required: without it the
+server sees `127.0.0.1` as the host and answers 421. Core Apache has no per-IP rate limit; use `mod_evasive` or the
+firewall if needed.
+
 ## 6. Check it from outside
 
 From any computer (not the server):
