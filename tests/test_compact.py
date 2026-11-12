@@ -13,8 +13,19 @@ def test_dates_use_colombian_time():
 
 
 def test_national_ids_are_dropped():
-    p = {"id": "1", "external_ids": [{"source": "cc", "id": "123"}, {"source": "orcid", "id": "https://orcid.org/x"}]}
+    # Source names as Kahi stores them.
+    private = ["cc", "Cédula de Ciudadanía", "Cédula de Extranjería", "Pasaporte", "Passport", "Tarjeta de Identidad"]
+    p = {"id": "1", "external_ids": [*({"source": s, "id": "123"} for s in private), {"source": "orcid", "id": "https://orcid.org/x"}]}
     assert C.person(p)["external_ids"] == {"orcid": "https://orcid.org/x"}
+
+
+def test_map_keeps_counts_without_shapes():
+    plot = {"type": "FeatureCollection", "features": [
+        {"geometry": {"coordinates": [[1, 2]]}, "properties": {"name": "Peru", "country_code": "PE", "count": 3}},
+        {"geometry": {}, "properties": {"name": "Chad", "country_code": "TD", "count": 0}},
+        {"geometry": {}, "properties": {"NOMBRE_DPT": "ANTIOQUIA", "DPTO": "05", "count": 9, "AREA": 1.5}},
+    ]}
+    assert C.map_rows(plot) == [{"name": "ANTIOQUIA", "code": "05", "count": 9}, {"name": "Peru", "code": "PE", "count": 3}]
 
 
 def test_product_picks_values_by_source():

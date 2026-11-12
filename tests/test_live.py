@@ -57,9 +57,11 @@ async def call(url, tool, **args):
 
 async def test_tools_listed(url):
     async with Client(url) as c:
-        names = {t.name for t in (await c.list_tools()).tools}
+        tools = (await c.list_tools()).tools
         assert c.instructions and "ImpactU" in c.instructions
-    assert {"search_products", "get_product", "autocomplete", "get_indicator", "get_database_info"} <= names
+    assert {"search_products", "get_product", "autocomplete", "get_indicator", "get_database_info"} <= {t.name for t in tools}
+    # Claude's connector directory rejects tools without a title and a read-only or destructive hint.
+    assert all(t.title and t.annotations.title and t.annotations.read_only_hint for t in tools)
 
 
 async def test_database_info(url):
@@ -126,6 +128,9 @@ async def test_indicators(url):
     assert q["result"]
     c = await call(url, "get_indicator", entity_type="person", entity_id=PERSON, indicator="annual_citation_count")
     assert c["result"]
+    # the API sends maps as GeoJSON (~300 kB); call() checks the answer stays under MAX_BYTES
+    m = await call(url, "get_indicator", entity_type="institution", entity_id=UDEA, indicator="coauthorship_by_country_map")
+    assert m["result"]["plot"][0]["count"] > 0
     bad = await call(url, "get_indicator", entity_type="person", entity_id=PERSON, indicator="citations_by_faculty")
     assert "_error" in bad
 

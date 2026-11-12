@@ -9,7 +9,9 @@ COT = dt.timezone(dt.timedelta(hours=-5))  # ImpactU dates are Unix seconds at C
 TYPE_SOURCES = ("impactu", "scienti", "minciencias", "openalex")
 AFF_LEVELS = {"group": "group", "faculty": "faculty", "department": "department"}
 # national id numbers are never passed on, even if the API ever returns them
-PRIVATE_ID_SOURCES = {"cc", "ce", "ti", "cedula", "cédula", "passport", "pasaporte", "document", "doc", "nit", "dni"}
+# (Kahi names them "Cédula de Ciudadanía", "Cédula de Extranjería", "Pasaporte", "Passport", "Tarjeta de Identidad").
+PRIVATE_ID_SOURCES = {"cc", "ce", "ti", "cedula", "cédula", "passport", "pasaporte", "document", "doc", "nit", "dni",
+                      "cédula de ciudadanía", "cédula de extranjería", "tarjeta de identidad", "documento extranjero"}
 
 
 def ids(items):
@@ -194,6 +196,20 @@ def source(s):
         "latest_publindex": latest_rank(s.get("ranking"), ("publindex",)),
     }
     return {k: v for k, v in out.items() if v not in (None, [], {})}
+
+
+def map_rows(plot):
+    """A GeoJSON map plot as {name, code, count} rows with a count, largest first.
+
+    The shapes weigh ~300 kB and tell a model nothing; sorting first means a trimmed list drops the smallest counts.
+    """
+    rows = []
+    for f in plot.get("features") or []:
+        p = (f.get("properties") or {}) if isinstance(f, dict) else {}
+        if p.get("count"):
+            rows.append({"name": p.get("name") or p.get("NOMBRE_DPT"), "code": p.get("country_code") or p.get("DPTO"),
+                         "count": p["count"]})
+    return sorted(rows, key=lambda r: -r["count"])
 
 
 def page_meta(meta, page, size):

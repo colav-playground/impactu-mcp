@@ -4,8 +4,8 @@ Run locally:   impactu-mcp            (streamable HTTP on http://127.0.0.1:8000/
 Environment:   see README.md (IMPACTU_API_BASE, MCP_PUBLIC_HOSTS, HOST, PORT, ...)
 """
 import contextlib
-import json
 import os
+import re
 from typing import Annotated, Literal
 
 from mcp.server.mcpserver import MCPServer
@@ -95,6 +95,12 @@ mcp = MCPServer(
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=True)
 
+
+def tool(title):
+    """Register a read-only tool. Claude's connector directory requires a title on every tool."""
+    return mcp.tool(title=title, annotations=READ_ONLY.model_copy(update={"title": title}))
+
+
 PageSize = Annotated[int, Field(ge=1, le=25, description="Results per page (1-25).")]
 Page = Annotated[int, Field(ge=1, le=10000, description="Page number, from 1.")]
 Years = Annotated[str | None, Field(description="Year range 'MIN,MAX', e.g. '2020,2025'; one year: '2024,2024'.")]
@@ -130,7 +136,7 @@ def product_page(d, page, size, max_authors):
             "products": [C.product(w, max_authors=max_authors) for w in d.get("data") or [] if isinstance(w, dict)]}
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Search products")
 async def search_products(
     query: Annotated[str | None, Field(description="Words to search in titles and content. Leave empty to list with filters only.")] = None,
     years: Years = None,
@@ -151,7 +157,7 @@ async def search_products(
     return product_page(await call("/search/works", params), page, page_size, max_authors)
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("List products of an entity")
 async def list_products(
     entity_type: Annotated[EntityType, Field(description="Whose products: person, institution, faculty, department, group or source (journal).")],
     entity_id: Annotated[str, Field(description="Id of that person, affiliation or journal (use autocomplete to find it).")],
@@ -172,7 +178,7 @@ async def list_products(
     return product_page(await call(products_path(entity_type, entity_id), params), page, page_size, max_authors)
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Get product")
 async def get_product(
     product_id: Annotated[str, Field(description="ImpactU product id, as returned by the search and list tools (usually the DOI, e.g. 10.1103/physrevd.103.095032).")],
     max_authors: Annotated[int, Field(ge=0, le=100, description="Authors to include, in byline order.")] = 20,
@@ -183,26 +189,20 @@ async def get_product(
     return C.product_detail(d.get("data") or {}, max_authors=max_authors)
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Find product by DOI")
 async def find_product_by_doi(
     doi: Annotated[str, Field(description="DOI, with or without https://doi.org/, e.g. 10.1103/PhysRevD.103.095032.")],
 ) -> dict:
-    """Find the ImpactU product(s) with a DOI."""
-    doi = doi.strip()
-    for prefix in ("https://doi.org/", "http://doi.org/", "doi:", "https://dx.doi.org/"):
-        if doi.lower().startswith(prefix):
-            doi = doi[len(prefix):]
-    try:
-        d = await client.get("/work", {"doi": "https://doi.org/" + doi, "view": "summary", "max": 5, "page": 1})
-    except ApiError as e:
-        if "Not found" in str(e):
-            return {"doi": doi, "found": 0, "products": []}
-        raise ToolError(str(e))
-    items = d.get("data") or []
-    return {"doi": doi, "found": len(items), "products": [C.product(w, max_authors=5) for w in items]}
+    """Find the ImpactU product(s) with a DOI (several when duplicates share it; at most 5 are listed)."""
+    doi = re.sub(r"^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)", "", doi.strip(), flags=re.I)
+    # An unknown DOI answers 200 with no data; a 404 means the route is missing and must surface as an error.
+    d = await call("/work", {"doi": "https://doi.org/" + doi, "view": "summary", "max": 5, "page": 1})
+    items = [w for w in d.get("data") or [] if isinstance(w, dict)]
+    found = (d.get("meta") or {}).get("count", len(items))
+    return {"doi": doi, "found": found, "products": [C.product(w, max_authors=5) for w in items]}
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Get product authors")
 async def get_product_authors(
     product_id: Annotated[str, Field(description="ImpactU product id, as returned by the search and list tools (usually the DOI).")],
     offset: Annotated[int, Field(ge=0, description="First author to return (0 = first in the byline).")] = 0,
@@ -223,13 +223,13 @@ async def get_product_authors(
             "authors": [{"position": offset + i + 1, **C.author(a, max_affiliations=4)} for i, a in enumerate(part)]}
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Find ids by name")
 async def autocomplete(
     kind: Annotated[Literal["person", "institution", "faculty", "department", "group", "source"], Field(description="What to look up.")],
     text: Annotated[str, Field(min_length=2, description="Part of the name, e.g. 'diego restrepo', 'antioquia', 'fenomenologia'.")],
 ) -> dict:
     """Find ids by name: people, institutions, faculties, departments, research groups or journals (sources).
-    Use this before the other tools to get the right id."""
+    Returns the ids that the other ImpactU tools take."""
     if kind == "person":
         path = f"/completer/person/{seg(text)}"
     elif kind == "source":
@@ -253,7 +253,7 @@ async def autocomplete(
     return {"kind": kind, "matches": out}
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Search researchers")
 async def search_people(
     query: Annotated[str, Field(description="Name or keywords.")],
     page: Page = 1,
@@ -265,7 +265,7 @@ async def search_people(
     return {**C.page_meta(d.get("meta"), page, page_size), "people": [C.person(p) for p in d.get("data") or []]}
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Get researcher")
 async def get_person(person_id: Annotated[str, Field(description="Person id, e.g. '0000177733'.")]) -> dict:
     """Profile of a researcher: affiliations over time (institution, faculty, department, group), products,
     citations, h-index, latest Minciencias category and external ids (ORCID, Scholar, OpenAlex, Scienti)."""
@@ -273,7 +273,7 @@ async def get_person(person_id: Annotated[str, Field(description="Person id, e.g
     return C.person(d.get("data") or {})
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Search affiliations")
 async def search_affiliations(
     affiliation_type: Annotated[Literal["institution", "faculty", "department", "group"], Field(description="Kind of affiliation.")],
     query: Annotated[str | None, Field(description="Name or keywords.")] = None,
@@ -288,7 +288,7 @@ async def search_affiliations(
     return {**C.page_meta(d.get("meta"), page, page_size), "affiliations": [C.affiliation(a) for a in d.get("data") or []]}
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Get affiliation")
 async def get_affiliation(
     affiliation_type: Annotated[Literal["institution", "faculty", "department", "group"], Field(description="Kind of affiliation.")],
     affiliation_id: Annotated[str, Field(description="ROR id for institutions (03bp5hc83), COL code for groups, or the faculty/department id.")],
@@ -307,7 +307,7 @@ async def get_affiliation(
     return out
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Search journals")
 async def search_sources(
     query: Annotated[str, Field(description="Journal or source name, ISSN or keywords.")],
     page: Page = 1,
@@ -318,7 +318,7 @@ async def search_sources(
     return {**C.page_meta(d.get("meta"), page, page_size), "sources": [C.source(s) for s in d.get("data") or []]}
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Get journal")
 async def get_source(source_id: Annotated[str, Field(description="ImpactU source (journal) id, as returned by search_sources or autocomplete.")]) -> dict:
     """Profile of a journal or publication source."""
     d = await call(f"/source/{seg(source_id)}", {"view": "full"})
@@ -337,7 +337,7 @@ def trim(value, max_items):
     return value
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Get indicator")
 async def get_indicator(
     entity_type: Annotated[EntityType, Field(description="person, institution, faculty, department, group or source.")],
     entity_id: Annotated[str, Field(description="Id of the person, affiliation or journal.")],
@@ -360,10 +360,12 @@ async def get_indicator(
         raise ToolError(f"Unknown indicator for {entity_type}. Valid: {', '.join(INDICATORS[family])}")
     params = {"plot": indicator, **product_filters(years, product_types, open_access, countries, authors_count)}
     d = await call(products_path(entity_type, entity_id), params)
+    if isinstance(d, dict) and isinstance(d.get("plot"), dict) and d["plot"].get("type") == "FeatureCollection":
+        d = {**d, "plot": C.map_rows(d["plot"])}
     return {"entity_type": entity_type, "entity_id": entity_id, "indicator": indicator, "result": trim(d, max_items)}
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Get filter options")
 async def get_filter_options(
     scope: Annotated[Literal["search", "person", "institution", "faculty", "department", "group", "source"],
                      Field(description="'search' for search_products, otherwise the entity whose products you list.")] = "search",
@@ -390,7 +392,7 @@ async def get_filter_options(
     return out
 
 
-@mcp.tool(annotations=READ_ONLY)
+@tool("Get database info")
 async def get_database_info() -> dict:
     """Totals in ImpactU (products, people, institutions, groups, journals, patents, projects, open access)
     and the date of the last data update."""

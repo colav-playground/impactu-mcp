@@ -4,7 +4,7 @@
 set -u
 URL=${1:-https://impactu-mcp.onrender.com/mcp}
 BASE=${URL%/mcp}
-REPO=${IMPACTU_MCP_REPO:-$HOME/prog/claude/impactu-mcp}
+REPO=${IMPACTU_MCP_REPO:-$(cd "$(dirname "$0")/../../.." && pwd)}  # the repository this skill lives in
 
 echo "== $URL"
 echo -n "healthz: "; curl -s -m 90 "$BASE/healthz"; echo
