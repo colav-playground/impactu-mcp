@@ -138,7 +138,11 @@ def product_page(d, page, size, max_authors):
 
 @tool("Search products")
 async def search_products(
-    query: Annotated[str | None, Field(description="Words to search in titles and content. Leave empty to list with filters only.")] = None,
+    query: Annotated[str | None, Field(description=(
+        "Words to search in titles and content (MongoDB text search; words are stemmed). Words separated by spaces are "
+        "OR'ed; wrap each required word or exact phrase in double quotes to AND them; prefix a word with - to exclude it: "
+        '`"dark matter" "neutrino" -axion`. AND, OR and NOT are not operators (they are searched as words: slow and wrong); '
+        "+, &&, ||, * and parentheses are ignored. Leave empty to list with filters only."))] = None,
     years: Years = None,
     product_types: ProductTypes = None,
     open_access: OpenAccess = None,
@@ -151,7 +155,8 @@ async def search_products(
     max_authors: Annotated[int, Field(ge=0, le=20, description="Authors shown per product.")] = 3,
 ) -> dict:
     """Search all research products in ImpactU (articles, books, chapters, theses, software, ...) by keywords and filters.
-    Returns the total number of matches and one page of compact records."""
+    Returns the total number of matches and one page of compact records. Query syntax: spaces = OR, "quoted" terms =
+    AND (and exact phrases), -word = NOT; never write AND/OR/NOT."""
     params = {"keywords": query, "max": page_size, "page": page, "sort": sort, "view": "summary",
               **product_filters(years, product_types, open_access, countries, authors_count, groups_ranking)}
     return product_page(await call("/search/works", params), page, page_size, max_authors)
