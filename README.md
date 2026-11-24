@@ -37,7 +37,7 @@ All tools are read-only.
 | `get_product_authors` | Full author list in byline order, paged, optionally only Colombian authors |
 | `search_people`, `get_person` | Researchers: affiliations over time, products, citations, h-index, Minciencias category, ORCID/Scholar/OpenAlex ids |
 | `search_affiliations`, `get_affiliation` | Institutions, faculties, departments and groups, optionally with their internal units |
-| `search_sources`, `get_source` | Journals: publisher, ISSN, Scimago quartile, Publindex |
+| `search_sources`, `get_source` | Journals by name, open access (diamond = no APC), Scimago quartile, APC, subject, minimum h-index, DOAJ listing; publisher, ISSN, h-index, Publindex |
 | `get_indicator` | ImpactU's ready-made indicators (citations per year, quartiles, co-authorship by country, h-index by group, APC, ...) |
 | `get_filter_options` | Valid filter values with counts, including the OpenAlex domain → field → subfield → topic tree |
 | `get_database_info` | Totals and date of the last data update |

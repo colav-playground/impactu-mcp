@@ -70,6 +70,9 @@ How to use these tools:
 - Many values come per data source (citations: openalex, scholar). Say which source a number comes from.
   Empty fields mean "not recorded in ImpactU", not "does not exist".
 - Valid filter values (product types, countries, rankings) come from `get_filter_options`.
+- Journals: `search_sources` filters by open access (diamond = no APC), Scimago quartile, APC, subject category
+  and minimum Scimago h-index. ImpactU calls a journal diamond also when it only lacks APC data; only journals
+  with in_doaj=true have vetted APC terms, so say which ones are DOAJ-listed.
 - Filter products by subject with `topics`: OpenAlex domains/N, fields/N, subfields/N or topics TN (e.g.
   `fields/31` Physics and Astronomy). `get_filter_options` lists the tree with ids, names and counts.
 """
@@ -117,6 +120,7 @@ Topics = Annotated[str | None, Field(description=(
     "with get_filter_options."))]
 TopicLevel = Literal["domain", "field", "subfield", "topic"]
 TOPIC_LEVELS = ("domain", "field", "subfield", "topic")
+SOURCE_SCAN_LIMIT = 3000
 
 
 async def call(path, params=None):
@@ -354,13 +358,69 @@ async def get_affiliation(
 
 @tool("Search journals")
 async def search_sources(
-    query: Annotated[str, Field(description="Journal or source name, ISSN or keywords.")],
+    query: Annotated[str | None, Field(description="Journal name, ISSN or words of the name (same syntax as search_products). Leave empty to list with filters only.")] = None,
+    open_access: Annotated[str | None, Field(description=(
+        "Open-access status, comma-separated: open (any), diamond (no APC), gold, hybrid, closed. ImpactU marks a journal "
+        "diamond also when it merely has no APC recorded; for a vetted 'no APC' require in_doaj=true."))] = None,
+    source_types: Annotated[str | None, Field(description="Comma-separated: journal, conference, book series, repository, ebook platform.")] = None,
+    scimago_quartiles: Annotated[str | None, Field(description="Best Scimago quartile, comma-separated: Q1, Q2, Q3, Q4, '-' (none).")] = None,
+    apc_range: Annotated[str | None, Field(description="APC range 'MIN,MAX' in USD, e.g. '0,1000'. Journals with no APC recorded never match: use open_access='diamond' instead.")] = None,
+    topics: Annotated[str | None, Field(description="OpenAlex topics TN, comma-separated (domains, fields and subfields give 0 results for journals; use subject instead).")] = None,
+    subject: Annotated[str | None, Field(description=(
+        "Subject category words, matched at word starts in the journal's Scimago/DOAJ categories, e.g. 'ecolog' matches "
+        "Ecology and Ecological Modeling but not Gynecology. Several alternatives with '|': 'ecolog|conservation'."))] = None,
+    min_h_index: Annotated[int | None, Field(ge=0, description="Keep journals whose latest Scimago h-index is at least this.")] = None,
+    in_doaj: Annotated[bool | None, Field(description="true: only journals listed in DOAJ (vetted open access and APC data).")] = None,
+    sort: Annotated[Literal["citations_desc", "products_desc", "alphabetical_asc", "h_index_desc"], Field(description=(
+        "citations_desc and products_desc count Colombian products in ImpactU; h_index_desc is the Scimago h-index."))] = "citations_desc",
     page: Page = 1,
     page_size: PageSize = 10,
 ) -> dict:
-    """Search journals and other publication sources, with publisher, ISSN, Scimago quartile and Publindex category."""
-    d = await call("/search/sources", {"keywords": query, "max": page_size, "page": page, "view": "summary"})
-    return {**C.page_meta(d.get("meta"), page, page_size), "sources": [C.source(s) for s in d.get("data") or []]}
+    """Search journals and other publication sources by name and filters: open-access status (diamond = no APC),
+    Scimago quartile, APC range, subject category, minimum Scimago h-index, DOAJ listing. Each source comes with
+    publisher, ISSN, open access, APC, quartile, h-index and subjects.
+
+    subject, min_h_index, in_doaj and sort=h_index_desc are applied by this server over the API's matches, scanning
+    up to 3,000 of them; if `complete` is false, narrow with open_access, scimago_quartiles or source_types (for
+    example one quartile per call) and merge."""
+    if not any((query, open_access, source_types, scimago_quartiles, apc_range, topics, subject, min_h_index is not None, in_doaj)):
+        raise ToolError("Give a query or at least one filter.")
+    params = {"keywords": query, "status": open_access, "source_types": source_types, "scimago_quartiles": scimago_quartiles,
+              "apc_range": apc_range, "topics": topic_urls(topics),
+              "sort": "citations_desc" if sort == "h_index_desc" else sort}
+    local = subject or min_h_index is not None or in_doaj is not None or sort == "h_index_desc"
+    if not local:
+        d = await call("/search/sources", {**params, "max": page_size, "page": page})
+        return {**C.page_meta(d.get("meta"), page, page_size), "sources": [C.source(s) for s in d.get("data") or []]}
+    pattern = re.compile(r"\b(?:" + "|".join(re.escape(w.strip()) for w in subject.split("|") if w.strip()) + ")", re.I) if subject else None
+    rows, scanned, candidates, api_page = [], 0, None, 1
+    while scanned < SOURCE_SCAN_LIMIT:
+        d = await call("/search/sources", {**params, "max": 250, "page": api_page})
+        data = [s for s in d.get("data") or [] if isinstance(s, dict)]
+        candidates = (d.get("meta") or {}).get("count", candidates)
+        scanned += len(data)
+        for s in data:
+            row = C.source(s)
+            if pattern and not any(pattern.search(x) for x in C.subjects(s)):
+                continue
+            if min_h_index is not None and (row.get("scimago_h_index") or -1) < min_h_index:
+                continue
+            if in_doaj is not None and bool(row.get("in_doaj")) != in_doaj:
+                continue
+            rows.append(row)
+        if not data or not ((d.get("meta") or {}).get("cursor") or {}).get("next"):
+            break
+        api_page += 1
+    if sort == "h_index_desc":
+        rows.sort(key=lambda r: -(r.get("scimago_h_index") or -1))
+    complete = candidates is None or scanned >= candidates
+    out = {"total": len(rows), "page": page, "page_size": page_size, "has_more": page * page_size < len(rows),
+           "complete": complete, "api_matches": candidates, "scanned": scanned,
+           "sources": rows[(page - 1) * page_size: page * page_size]}
+    if not complete:
+        out["note"] = (f"Only the first {scanned} of {candidates} API matches were scanned: `total` is a lower bound. "
+                       "Narrow with open_access, scimago_quartiles or source_types and merge the calls.")
+    return out
 
 
 @tool("Get journal")

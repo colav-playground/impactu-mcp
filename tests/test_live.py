@@ -156,3 +156,14 @@ async def test_topics_filter(url):
     assert 0 < physics["total"]
     bad = await call(url, "search_products", topics="physics")
     assert "_error" in bad
+
+
+async def test_journal_filters(url):
+    # "Which open-access journals in ecology charge no APC and have an h-index above 50?" (one quartile per call)
+    r = await call(url, "search_sources", open_access="diamond", source_types="journal", scimago_quartiles="Q1",
+                   subject="ecolog", min_h_index=51, sort="h_index_desc", page_size=25)
+    assert r["complete"] and r["total"] >= 5
+    hs = [s["scimago_h_index"] for s in r["sources"]]
+    assert hs == sorted(hs, reverse=True) and min(hs) > 50
+    assert all(s["open_access_status"] == "diamond" for s in r["sources"])
+    assert not any("Gynecolog" in " ".join(s.get("subjects", [])) and "Ecolog" not in " ".join(s.get("subjects", [])) for s in r["sources"])

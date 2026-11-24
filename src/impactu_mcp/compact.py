@@ -192,10 +192,44 @@ def source(s):
         "colombian_products": s.get("products_count"),
         "global_products": s.get("global_products_count"), "global_citations": s.get("global_citations_count"),
         "open_access_status": s.get("open_access_status"),
+        "in_doaj": in_doaj(s),
+        "open_access_since": s.get("open_access_start_year"),
+        "apc": apc(s.get("apc")),
+        "licenses": sorted({x.get("type") for x in s.get("licenses") or [] if isinstance(x, dict) and x.get("type")}),
         "latest_scimago_quartile": latest_rank(s.get("ranking"), ("scimago Best Quartile",)),
+        "scimago_h_index": h_index(s),
         "latest_publindex": latest_rank(s.get("ranking"), ("publindex",)),
+        "subjects": subjects(s)[:8],
     }
     return {k: v for k, v in out.items() if v not in (None, [], {})}
+
+
+def in_doaj(s):
+    """Whether DOAJ lists the journal: the only source in ImpactU that vets a journal's open-access and APC terms."""
+    return any(isinstance(n, dict) and n.get("source") == "doaj" for n in s.get("names") or [])
+
+
+def apc(a):
+    if not isinstance(a, dict) or a.get("charges") in (None, ""):
+        return None
+    return {"charges": a.get("charges"), "currency": a.get("currency")}
+
+
+def h_index(s):
+    """Latest Scimago h-index of a journal."""
+    h = latest_rank(s.get("ranking"), ("scimago hindex",))
+    return h if isinstance(h, (int, float)) else None
+
+
+def subjects(s):
+    """Subject categories (Scimago, DOAJ, ...), without repeats."""
+    out = []
+    for g in s.get("subjects") or []:
+        for x in (g.get("subjects") or []) if isinstance(g, dict) else []:
+            name = x.get("name") if isinstance(x, dict) else None
+            if name and name not in out:
+                out.append(name)
+    return out
 
 
 def map_rows(plot):
