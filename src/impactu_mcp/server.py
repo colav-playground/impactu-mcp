@@ -70,6 +70,8 @@ How to use these tools:
 - Many values come per data source (citations: openalex, scholar). Say which source a number comes from.
   Empty fields mean "not recorded in ImpactU", not "does not exist".
 - Valid filter values (product types, countries, rankings) come from `get_filter_options`.
+- Filter products by subject with `topics`: OpenAlex domains/N, fields/N, subfields/N or topics TN (e.g.
+  `fields/31` Physics and Astronomy). `get_filter_options` lists the tree with ids, names and counts.
 """
 
 client = ImpactUClient()
@@ -109,6 +111,12 @@ OpenAccess = Annotated[str | None, Field(description="Open-access status, comma-
 Countries = Annotated[str | None, Field(description="Co-author country codes, comma-separated, e.g. 'CO,US'.")]
 AuthorsCount = Annotated[str | None, Field(description="Number of authors: '5' exact, '-100' up to 100, '101-' 101 or more, '5-8' range.")]
 GroupsRanking = Annotated[str | None, Field(description="Minciencias group category, comma-separated: A1, A, B, C, Reconocido.")]
+Topics = Annotated[str | None, Field(description=(
+    "OpenAlex subject, comma-separated (OR'ed): a domain 'domains/2', field 'fields/33', subfield 'subfields/3304' or topic "
+    "'T14483' (full https://openalex.org/... URLs also work). A level includes everything below it. Find ids and names "
+    "with get_filter_options."))]
+TopicLevel = Literal["domain", "field", "subfield", "topic"]
+TOPIC_LEVELS = ("domain", "field", "subfield", "topic")
 
 
 async def call(path, params=None):
@@ -118,9 +126,39 @@ async def call(path, params=None):
         raise ToolError(str(e))
 
 
-def product_filters(years, product_types, open_access, countries, authors_count, groups_ranking=None):
+def topic_urls(topics):
+    """Accept 'T14483', 'fields/33' or full OpenAlex URLs; the API wants the full URLs."""
+    if not topics:
+        return None
+    out = []
+    for t in (x.strip() for x in topics.split(",")):
+        t = re.sub(r"^(https?://)?(www\.)?openalex\.org/", "", t).strip("/")
+        if not re.fullmatch(r"(domains|fields|subfields)/\d+|[Tt]\d+", t):
+            raise ToolError(f"Unknown topic '{t}'. Use domains/N, fields/N, subfields/N or TN (see get_filter_options).")
+        out.append("https://openalex.org/" + (t.upper() if t[0] in "Tt" else t))
+    return ",".join(out)
+
+
+def product_filters(years, product_types, open_access, countries, authors_count, groups_ranking=None, topics=None):
     return {"years": years, "product_types": product_types, "status": open_access, "countries": countries,
-            "authors_count": authors_count, "groups_ranking": groups_ranking}
+            "authors_count": authors_count, "groups_ranking": groups_ranking, "topics": topic_urls(topics)}
+
+
+def topic_rows(tree, level, max_options):
+    """Flatten the API's domain > field > subfield > topic tree down to `level`, largest first within each parent."""
+    depth = TOPIC_LEVELS.index(level)
+    rows = []
+
+    def walk(nodes, d, parent):
+        for n in sorted((n for n in nodes if isinstance(n, dict)), key=lambda n: -(n.get("count") or 0)):
+            rows.append({"level": TOPIC_LEVELS[d], "value": str(n.get("value", "")).replace("https://openalex.org/", ""),
+                         "title": n.get("title"), "count": n.get("count"), **({"parent": parent} if parent else {})})
+            if d < depth:
+                walk(n.get("children") or [], d + 1, rows[-1]["value"])
+
+    walk(tree, 0, None)
+    return rows[:max_options] + ([{"_truncated": f"{len(rows) - max_options} more; filter with topics or lower topic_level"}]
+                                 if len(rows) > max_options else [])
 
 
 def products_path(entity_type, entity_id):
@@ -149,6 +187,7 @@ async def search_products(
     countries: Countries = None,
     authors_count: AuthorsCount = None,
     groups_ranking: GroupsRanking = None,
+    topics: Topics = None,
     sort: Sort = "citations_desc",
     page: Page = 1,
     page_size: PageSize = 10,
@@ -158,7 +197,7 @@ async def search_products(
     Returns the total number of matches and one page of compact records. Query syntax: spaces = OR, "quoted" terms =
     AND (and exact phrases), -word = NOT; never write AND/OR/NOT."""
     params = {"keywords": query, "max": page_size, "page": page, "sort": sort, "view": "summary",
-              **product_filters(years, product_types, open_access, countries, authors_count, groups_ranking)}
+              **product_filters(years, product_types, open_access, countries, authors_count, groups_ranking, topics)}
     return product_page(await call("/search/works", params), page, page_size, max_authors)
 
 
@@ -171,6 +210,7 @@ async def list_products(
     open_access: OpenAccess = None,
     countries: Countries = None,
     authors_count: AuthorsCount = None,
+    topics: Topics = None,
     sort: Sort = "citations_desc",
     page: Page = 1,
     page_size: PageSize = 10,
@@ -179,7 +219,7 @@ async def list_products(
     """List the research products of one researcher, institution, faculty, department, research group or journal,
     with filters. `total` gives the number of matching products."""
     params = {"max": page_size, "page": page, "sort": sort, "view": "summary",
-              **product_filters(years, product_types, open_access, countries, authors_count)}
+              **product_filters(years, product_types, open_access, countries, authors_count, topics=topics)}
     return product_page(await call(products_path(entity_type, entity_id), params), page, page_size, max_authors)
 
 
@@ -355,6 +395,7 @@ async def get_indicator(
     open_access: OpenAccess = None,
     countries: Countries = None,
     authors_count: AuthorsCount = None,
+    topics: Topics = None,
     max_items: Annotated[int, Field(ge=5, le=300, description="Maximum entries kept in each list of the result.")] = 60,
 ) -> dict:
     """Ready-made indicators computed by ImpactU over all matching products (no paging): citations per year,
@@ -363,7 +404,7 @@ async def get_indicator(
     family = "person" if entity_type == "person" else "source" if entity_type == "source" else "affiliation"
     if indicator not in INDICATORS[family]:
         raise ToolError(f"Unknown indicator for {entity_type}. Valid: {', '.join(INDICATORS[family])}")
-    params = {"plot": indicator, **product_filters(years, product_types, open_access, countries, authors_count)}
+    params = {"plot": indicator, **product_filters(years, product_types, open_access, countries, authors_count, topics=topics)}
     d = await call(products_path(entity_type, entity_id), params)
     if isinstance(d, dict) and isinstance(d.get("plot"), dict) and d["plot"].get("type") == "FeatureCollection":
         d = {**d, "plot": C.map_rows(d["plot"])}
@@ -376,20 +417,27 @@ async def get_filter_options(
                      Field(description="'search' for search_products, otherwise the entity whose products you list.")] = "search",
     entity_id: Annotated[str | None, Field(description="Entity id when scope is not 'search'.")] = None,
     query: Annotated[str | None, Field(description="Search words, when scope is 'search'.")] = None,
+    topics: Annotated[str | None, Field(description=(
+        "Restrict to these OpenAlex domains/fields/subfields/topics (as in search_products); the topic tree then shows "
+        "only their branches, e.g. topics='fields/31' with topic_level='topic' lists the physics topics."))] = None,
+    topic_level: Annotated[TopicLevel, Field(description="How deep to list the topic tree: domain, field, subfield or topic.")] = "field",
     max_options: Annotated[int, Field(ge=5, le=200, description="Maximum options listed per filter.")] = 40,
 ) -> dict:
     """Valid values (with counts) for the product filters: product types, open-access status, countries,
-    author and group rankings, institution types, year and author-count ranges."""
+    author and group rankings, institution types, year and author-count ranges, and the OpenAlex subject tree
+    (domain > field > subfield > topic, flattened down to topic_level) whose values go in `topics`."""
     if scope == "search":
-        path, params = "/search/works/filters", {"keywords": query}
+        path, params = "/search/works/filters", {"keywords": query, "topics": topic_urls(topics)}
     else:
         if not entity_id:
             raise ToolError("entity_id is required for this scope.")
-        path, params = products_path(scope, entity_id) + "/filters", {}
+        path, params = products_path(scope, entity_id) + "/filters", {"topics": topic_urls(topics)}
     d = await call(path, params)
     out = {}
     for k, v in (d or {}).items():
-        if isinstance(v, list):
+        if k == "topics" and isinstance(v, list):
+            out[k] = topic_rows(v, topic_level, max_options)
+        elif isinstance(v, list):
             opts = [{kk: o.get(kk) for kk in ("value", "label", "count") if o.get(kk) is not None} for o in v if isinstance(o, dict)]
             out[k] = opts[:max_options] + ([{"_truncated": f"{len(opts) - max_options} more"}] if len(opts) > max_options else [])
         else:

@@ -11,7 +11,7 @@ services:
     autoDeploy: true
     envVars:
       - key: IMPACTU_API_BASE
-        value: https://api.dev.impactu.colav.co
+        value: https://api.impactu.colav.co
       # the free instance has 512 MB of memory: one worker
       - key: WORKERS
         value: "1"

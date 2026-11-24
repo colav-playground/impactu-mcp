@@ -5,7 +5,7 @@ as a custom connector. It takes about an hour for someone with root access to a 
 
 ```
 Claude (Anthropic's cloud)                 Colav server
-  ──HTTPS──►  mcp.impactu.colav.co:443  ──►  nginx (TLS, rate limit)  ──►  impactu-mcp :8000  ──►  api.dev.impactu.colav.co
+  ──HTTPS──►  mcp.impactu.colav.co:443  ──►  nginx (TLS, rate limit)  ──►  impactu-mcp :8000  ──►  api.impactu.colav.co
 ```
 
 Claude connects **from Anthropic's cloud**, not from the user's computer, so the server must be reachable from the
@@ -69,9 +69,8 @@ Edit `.env`. The two settings that matter:
 
 - `MCP_PUBLIC_HOSTS=mcp.impactu.colav.co`: requests whose `Host` header is not this name are refused with 421.
   If you change the domain, change it here too.
-- `IMPACTU_API_BASE`: the API the tools call. Keep `https://api.dev.impactu.colav.co` while the documented routes
-  (help.impactu.colav.co) exist only on dev. Once production serves them, set `https://api.impactu.colav.co` and
-  restart (step 8). If the MCP server runs on the same machine or network as the API, you can point it at the
+- `IMPACTU_API_BASE`: the API the tools call, by default production (`https://api.impactu.colav.co`, documented at
+  help.impactu.colav.co). Set `https://api.dev.impactu.colav.co` to test a coming release, and restart (step 8). If the MCP server runs on the same machine or network as the API, you can point it at the
   API's internal address (for example `http://127.0.0.1:5000`) to skip the public round trip.
 
 `WORKERS=2` suits a small server; use about 2 per CPU core.
@@ -82,7 +81,7 @@ Edit `.env`. The two settings that matter:
 cd /opt/impactu-mcp/src
 docker compose up -d --build
 docker compose ps                       # STATUS should become "healthy" after ~30 s
-curl -s http://127.0.0.1:8000/healthz   # {"status":"ok","version":"0.1.0","api_base":"https://api.dev.impactu.colav.co"}
+curl -s http://127.0.0.1:8000/healthz   # {"status":"ok","version":"0.1.0","api_base":"https://api.impactu.colav.co"}
 ```
 
 The container listens only on `127.0.0.1:8000`, runs as an unprivileged user with a read-only file system, restarts
@@ -280,5 +279,5 @@ URL, documentation, a privacy policy and a support contact, and to have the tool
 | `502 Bad Gateway` from nginx | The server isn't running on `127.0.0.1:8000`: check `docker compose ps` or `systemctl status impactu-mcp`. |
 | `504 Gateway Timeout` | The ImpactU API took too long (large indicators can take 15–30 s). Raise `proxy_read_timeout` and `IMPACTU_TIMEOUT`. |
 | Claude: "couldn't connect" | Check `curl https://mcp.impactu.colav.co/healthz` from outside Colav's network; check the certificate chain (`fullchain.pem`); the URL must end in `/mcp`. |
-| A tool answers "Not found in ImpactU" | The id doesn't exist in the API set in `IMPACTU_API_BASE`. Dev and production ids differ. |
+| A tool answers "Not found in ImpactU" | The id doesn't exist in the API set in `IMPACTU_API_BASE`. Dev and production ids can differ. |
 | Tools fail after an ImpactU release | A route or field changed. Run `pytest -m live` to see which, and update `server.py`. |

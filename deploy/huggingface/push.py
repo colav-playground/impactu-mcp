@@ -46,7 +46,7 @@ def main(repo_id: str) -> None:
                       ignore_patterns=["**/__pycache__/**"], delete_patterns=["src/**"],
                       commit_message="Deploy from GitHub checkout")
 
-    variables = {"MCP_PUBLIC_HOSTS": host, "IMPACTU_API_BASE": "https://api.dev.impactu.colav.co", "WORKERS": "2"}
+    variables = {"MCP_PUBLIC_HOSTS": host, "IMPACTU_API_BASE": "https://api.impactu.colav.co", "WORKERS": "2"}
     for key, value in variables.items():
         api.add_space_variable(repo_id, key, value)
     print(f"Space: https://huggingface.co/spaces/{repo_id}\nConnector URL: https://{host}/mcp")

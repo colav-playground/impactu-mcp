@@ -14,10 +14,10 @@ clave, así que sirve en cualquier plan, **incluido el gratis** (que permite un 
 | Código (público) | <https://github.com/colav-playground/impactu-mcp> (clonarlo y crear `.venv` como dice el README) |
 | Servidor provisional | <https://impactu-mcp.onrender.com/mcp> (Render, plan gratis, cuenta del usuario) |
 | Servidor definitivo (pendiente, lo hace Colav) | `https://mcp.impactu.colav.co/mcp`, pasos en `DEPLOY.md` del repositorio |
-| API que consulta | `https://api.dev.impactu.colav.co` (variable `IMPACTU_API_BASE`) |
+| API que consulta | `https://api.impactu.colav.co`, producción (variable `IMPACTU_API_BASE`; `https://api.dev.impactu.colav.co` para probar una versión nueva) |
 
 ```
-Claude (nube de Anthropic) ──HTTPS POST /mcp──► servidor impactu-mcp ──► api.dev.impactu.colav.co
+Claude (nube de Anthropic) ──HTTPS POST /mcp──► servidor impactu-mcp ──► api.impactu.colav.co
 ```
 
 Claude se conecta **desde la nube de Anthropic**, no desde el computador del usuario: el servidor tiene que ser público,

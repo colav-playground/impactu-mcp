@@ -143,3 +143,16 @@ async def test_filter_options(url):
 async def test_errors_are_messages(url):
     d = await call(url, "get_product", product_id="not-an-id")
     assert "_error" in d
+
+
+async def test_topics_filter(url):
+    tree = await call(url, "get_filter_options", topics="subfields/3304", topic_level="topic")
+    values = [r.get("value") for r in tree["topics"]]
+    assert values[:3] == ["domains/2", "fields/33", "subfields/3304"] and "T14483" in values
+    sub = await call(url, "search_products", topics="https://openalex.org/subfields/3304", page_size=1)
+    topic = await call(url, "search_products", topics="T14483", page_size=1)
+    assert sub["total"] > topic["total"] > 0
+    physics = await call(url, "list_products", entity_type="person", entity_id=PERSON, topics="fields/31", page_size=1)
+    assert 0 < physics["total"]
+    bad = await call(url, "search_products", topics="physics")
+    assert "_error" in bad

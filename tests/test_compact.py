@@ -36,3 +36,13 @@ def test_product_picks_values_by_source():
                                               "from_date": 1577854800, "to_date": 1609390800}]}}
     p = C.product(w)
     assert (p["title"], p["type"], p["citations"], p["scimago_quartile"]) == ("A", "Artículo de revista", {"openalex": 3, "scholar": 5}, "Q1")
+
+
+def test_topic_ids_become_openalex_urls():
+    from impactu_mcp.server import topic_rows, topic_urls
+    assert topic_urls("t14483, fields/33,https://openalex.org/subfields/3304") == (
+        "https://openalex.org/T14483,https://openalex.org/fields/33,https://openalex.org/subfields/3304")
+    tree = [{"value": "https://openalex.org/domains/2", "title": "Social Sciences", "count": 5,
+             "children": [{"value": "https://openalex.org/fields/33", "title": "Social Sciences", "count": 5, "children": []}]}]
+    assert [r["value"] for r in topic_rows(tree, "domain", 40)] == ["domains/2"]
+    assert topic_rows(tree, "field", 40)[1] == {"level": "field", "value": "fields/33", "title": "Social Sciences", "count": 5, "parent": "domains/2"}

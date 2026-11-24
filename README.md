@@ -30,7 +30,7 @@ All tools are read-only.
 | Tool | What it does |
 | --- | --- |
 | `autocomplete` | Find ids by name: person, institution, faculty, department, group or journal |
-| `search_products` | Search all products by keywords and filters (years, type, open access, countries, number of authors, group category) |
+| `search_products` | Search all products by keywords and filters (years, type, open access, countries, number of authors, group category, OpenAlex domain/field/subfield/topic) |
 | `list_products` | Products of one person, institution, faculty, department, group or journal |
 | `get_product` | One product: types per source, journal and its Scimago quartile that year, citations, open access, abstract, ids, groups, authors |
 | `find_product_by_doi` | Products with a DOI |
@@ -39,7 +39,7 @@ All tools are read-only.
 | `search_affiliations`, `get_affiliation` | Institutions, faculties, departments and groups, optionally with their internal units |
 | `search_sources`, `get_source` | Journals: publisher, ISSN, Scimago quartile, Publindex |
 | `get_indicator` | ImpactU's ready-made indicators (citations per year, quartiles, co-authorship by country, h-index by group, APC, ...) |
-| `get_filter_options` | Valid filter values with counts |
+| `get_filter_options` | Valid filter values with counts, including the OpenAlex domain → field → subfield → topic tree |
 | `get_database_info` | Totals and date of the last data update |
 
 ImpactU records can weigh several MB (one physics paper lists thousands of authors), so the server never passes them
@@ -76,7 +76,7 @@ Environment variables (see `.env.example`):
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `IMPACTU_API_BASE` | `https://api.dev.impactu.colav.co` | ImpactU API the tools call. The documented routes are on dev today; switch to production once it serves them. |
+| `IMPACTU_API_BASE` | `https://api.impactu.colav.co` | ImpactU API the tools call (production, documented at [help.impactu.colav.co](https://help.impactu.colav.co)). Use `https://api.dev.impactu.colav.co` to test a coming release. |
 | `MCP_PUBLIC_HOSTS` | (empty) | Public host names, e.g. `mcp.impactu.colav.co`. Other `Host` headers get 421 (DNS-rebinding protection). |
 | `HOST`, `PORT`, `WORKERS` | `127.0.0.1`, `8000`, `1` | Where uvicorn listens and how many processes it runs |
 | `IMPACTU_TIMEOUT` | `90` | Seconds per API request |

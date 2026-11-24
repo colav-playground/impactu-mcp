@@ -6,7 +6,7 @@ from urllib.parse import quote
 
 import httpx
 
-API_BASE = os.environ.get("IMPACTU_API_BASE", "https://api.dev.impactu.colav.co").rstrip("/")
+API_BASE = os.environ.get("IMPACTU_API_BASE", "https://api.impactu.colav.co").rstrip("/")
 TIMEOUT = float(os.environ.get("IMPACTU_TIMEOUT", "90"))
 CACHE_TTL = float(os.environ.get("IMPACTU_CACHE_TTL", "600"))
 CACHE_SIZE = int(os.environ.get("IMPACTU_CACHE_SIZE", "2000"))
